@@ -79,7 +79,7 @@ def toolchain_defs(host_arch, host_os, target, version, cpu):
             name = all_files_name,
             srcs = [
                 "@{0}//:all_files".format(toolchain["name"]),
-                "//toolchains:wrappers",
+                "//{0}:wrappers".format(toolchain["wrapper_dir"]),
             ],
         )
 
@@ -273,7 +273,7 @@ def _impl_cc_arm_toolchain_config(ctx):
                     "-Wl,--strip-all",
                 ])],
             ),
-        ]
+        ],
     )
 
     features = [

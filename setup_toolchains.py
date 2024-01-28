@@ -24,10 +24,23 @@ _ALL_CPU = [
     'cortex-a9',
 ]
 
-_ALL_TOOLS = ['ar', 'as', 'cpp', 'gcc', 'gcov', 'ld', 'nm', 'objcopy', 'objdump', 'strip']
+_ALL_TOOLS = [
+    'ar',
+    'as',
+    'cpp',
+    'gcc',
+    'gcov',
+    'gdb',
+    'ld',
+    'nm',
+    'objcopy',
+    'objdump',
+    'readelf',
+    'strip',
+]
 
 
-def create_wrappers(toolchain_dir):
+def create_wrappers(toolchain_dir, root_dir):
   for toolchain in _AVAILABLE_TOOLCHAINS:
     host_os_name = '' if toolchain['host_os'] == 'linux' else "-" + toolchain['host_os']
     name = ('arm-gnu-toolchain-' +
@@ -37,27 +50,78 @@ def create_wrappers(toolchain_dir):
     target_os = 'linux' if 'linux' in toolchain['target'] else 'none'
     toolchain['target_os'] = target_os
 
+    wrapper_dir = os.path.join(toolchain_dir, 'tool_wrappers', toolchain['host_arch'],
+                               toolchain['host_os'], toolchain['target'], toolchain['version'])
     try:
-      os.makedirs(
-          os.path.join(toolchain_dir, 'tool_wrappers', toolchain['host_arch'], toolchain['host_os'],
-                       toolchain['target'], toolchain['version']))
+      os.makedirs(wrapper_dir)
     except FileExistsError:
       pass
 
+    # Populate empty BUILD files.
+    wrapper_dirs = os.path.relpath(wrapper_dir, toolchain_dir).split(os.path.sep)
+    for i in range(1, len(wrapper_dirs)):
+      with open(os.path.join(toolchain_dir, *wrapper_dirs[:-i], 'BUILD'), 'w') as f:
+        pass
+
+    toolchain['wrapper_dir'] = os.path.relpath(wrapper_dir, root_dir)
     toolchain['wrapper_paths'] = {}
+
+    build_file = '''\
+filegroup(
+    name = "wrappers",
+    srcs = glob(["*"]),
+    visibility = ["//visibility:public"],
+)
+
+'''
 
     for tool in _ALL_TOOLS:
       tool_name = f'{toolchain["target"]}-{tool}'
-      wrapper_path = os.path.join(toolchain_dir, 'tool_wrappers', toolchain['host_arch'],
-                                  toolchain['host_os'], toolchain['target'], toolchain['version'],
-                                  tool_name)
+      wrapper_path = os.path.join(wrapper_dir, tool_name)
       toolchain['wrapper_paths'][tool] = os.path.relpath(wrapper_path, toolchain_dir)
 
+      build_file += f'''\
+sh_binary(
+    name = "{tool}",
+    srcs = [":{tool_name}"],
+    data = ["@{name}//:all_files"],
+    visibility = ["//visibility:public"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
+'''
+
       with open(wrapper_path, 'w') as f:
-        f.write('#!/bin/bash\n')
-        f.write(f'exec external/{name}/bin/{tool_name} $@\n')
+        f.write(f'''\
+#!/bin/bash
+
+TOOL_PATH={name}/bin/{tool_name}
+
+# First check if we can find the executable directly and then revert to runfiles.
+# This is necessary because when used in the toolchain, the runfiles library is not available.
+if [[ -f external/${{TOOL_PATH}} ]]; then
+  exec external/${{TOOL_PATH}} $@
+fi
+
+# --- begin runfiles.bash initialization v3 ---
+# Copy-pasted from the Bazel Bash runfiles library v3.
+set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
+source "${{RUNFILES_DIR:-/dev/null}}/$f" 2>/dev/null || \\
+  source "$(grep -sm1 "^$f " "${{RUNFILES_MANIFEST_FILE:-/dev/null}}" | cut -f2- -d' ')" 2>/dev/null || \\
+  source "$0.runfiles/$f" 2>/dev/null || \\
+  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \\
+  source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \\
+  {{ echo>&2 "ERROR: cannot find $f"; exit 1; }}; f=; set -e
+# --- end runfiles.bash initialization v3 ---
+
+exec $(rlocation ${{TOOL_PATH}}) $@\n')
+''')
 
       os.chmod(wrapper_path, 0o777)
+
+    build_path = os.path.join(wrapper_dir, 'BUILD')
+    with open(build_path, 'w') as f:
+      f.write(build_file[:-2])
 
 
 def write_toolchain_info(filename):
@@ -79,6 +143,11 @@ def write_test_script(filename):
         f.write(f'bazel build -s --verbose_failures --platforms={platform} //test:test_cpp\n')
         f.write(f'bazel build -s --verbose_failures --platforms={platform} //test:test_c\n')
 
+    f.write('bazel run --verbose_failures //test:objdump -- --help\n')
+    f.write(
+        'bazel build -s --verbose_failures --platforms=//platforms:cortex-m0plus-none-12.3.rel1 //test:objdump_output\n'
+    )
+
   os.chmod(filename, 0o777)
 
 
@@ -88,7 +157,7 @@ def main():
 
   root_dir = os.path.dirname(os.path.realpath(__file__))
 
-  create_wrappers(os.path.join(root_dir, 'toolchains'))
+  create_wrappers(os.path.join(root_dir, 'toolchains'), root_dir)
   write_toolchain_info(os.path.join(root_dir, 'toolchains/toolchain_info.bzl'))
   write_test_script(os.path.join(root_dir, 'test_build_all.sh'))
 

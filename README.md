@@ -122,3 +122,36 @@ build --platforms=@bazel_arm_toolchains//platforms:{cpu}-{target_os}-{version}
 ```
 
 Then a simple `bazel build //...` will utilize the desired toolchain.
+
+### Direct Tool Access
+
+Direct access to the various tools (`gdb`, `objdump`, `readelf`, etc.) can be achieved through the
+various wrapper targets in [`toolchains/tool_wrappers`](toolchains/tool_wrappers).  For example:
+
+```Shell
+bazel run @bazel_arm_toolchains//toolchains/tool_wrappers/x86_64/linux/arm-none-eabi/12.3.rel1:readelf
+```
+
+Creating [alias](https://bazel.build/reference/be/general#alias) targets in your project may aid
+ergonomics:
+
+```Starlark
+alias(
+    name = "objdump",
+    actual = "@bazel_arm_toolchains//toolchains/tool_wrappers/x86_64/linux/arm-none-eabi/12.3.rel1:objdump",
+)
+```
+
+These tools can also be utilized indirectly via
+[genrules](https://bazel.build/reference/be/general#genrule):
+
+
+```Starlark
+genrule(
+    name = "objdump_output",
+    srcs = [":binary"],
+    outs = ["objdump_output.txt"],
+    cmd = "$(location :objdump) -x $< > $@",
+    tools = [":objdump"],
+)
+```
