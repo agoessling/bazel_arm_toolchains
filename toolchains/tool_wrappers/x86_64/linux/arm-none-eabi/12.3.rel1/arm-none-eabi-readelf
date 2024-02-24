@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TOOL_PATH=arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-cpp
+TOOL_PATH=arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-readelf
 
 # First check if we can find the executable directly and then revert to runfiles.
 # This is necessary because when used in the toolchain, the runfiles library is not available.

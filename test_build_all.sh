@@ -21,3 +21,5 @@ bazel build -s --verbose_failures --platforms=//platforms:cortex-a8-none-12.3.re
 bazel build -s --verbose_failures --platforms=//platforms:cortex-a8-none-12.3.rel1 //test:test_c
 bazel build -s --verbose_failures --platforms=//platforms:cortex-a9-none-12.3.rel1 //test:test_cpp
 bazel build -s --verbose_failures --platforms=//platforms:cortex-a9-none-12.3.rel1 //test:test_c
+bazel run --verbose_failures //test:objdump -- --help
+bazel build -s --verbose_failures --platforms=//platforms:cortex-m0plus-none-12.3.rel1 //test:objdump_output
