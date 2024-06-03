@@ -9,6 +9,13 @@ _AVAILABLE_TOOLCHAINS = [
         'version': '12.3.rel1',
         'sha256': '12a2815644318ebcceaf84beabb665d0924b6e79e21048452c5331a56332b309',
     },
+    {
+        'host_arch': 'arm64',
+        'host_os': 'darwin',
+        'target': 'arm-none-eabi',
+        'version': '12.3.rel1',
+        'sha256': '3b2eee0bdf71c1bbeb3c3b7424fbf7bd9d5c3f0f5a3a4a78159c9e3ad219e7bd',
+    },
 ]
 
 # GCC cpu options: https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html#index-mcpu-2
@@ -42,9 +49,9 @@ _ALL_TOOLS = [
 
 def create_wrappers(toolchain_dir, root_dir):
   for toolchain in _AVAILABLE_TOOLCHAINS:
-    host_os_name = '' if toolchain['host_os'] == 'linux' else "-" + toolchain['host_os']
+    host_os_name = '' if toolchain['host_os'] == 'linux' else toolchain['host_os'] + "-"
     name = ('arm-gnu-toolchain-' +
-            f'{toolchain["version"]}-{toolchain["host_arch"]}{host_os_name}-{toolchain["target"]}')
+            f'{toolchain["version"]}-{host_os_name}{toolchain["host_arch"]}-{toolchain["target"]}')
     toolchain['name'] = name
 
     target_os = 'linux' if 'linux' in toolchain['target'] else 'none'

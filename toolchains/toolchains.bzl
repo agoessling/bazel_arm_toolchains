@@ -48,7 +48,7 @@ filegroup(
         build_file_content = TOOLCHAIN_BUILD_FILE,
         url = "https://developer.arm.com/-/media/Files/downloads/gnu/{0}/binrel/{1}.tar.xz".format(
             toolchain["version"],
-            toolchain["name"],
+            toolchain["name"].replace("macos", "darwin"),
         ),
         strip_prefix = toolchain["name"],
         sha256 = toolchain["sha256"],
@@ -109,7 +109,7 @@ def toolchain_defs(host_arch, host_os, target, version, cpu):
         name = "{0}_toolchain".format(name_with_cpu),
         exec_compatible_with = [
             "@platforms//cpu:{}".format(toolchain["host_arch"]),
-            "@platforms//os:{}".format(toolchain["host_os"]),
+            "@platforms//os:{}".format(toolchain["host_os"]).replace("darwin","macos"),
         ],
         target_compatible_with = [
             "//platforms/cpu:{}".format(cpu),
