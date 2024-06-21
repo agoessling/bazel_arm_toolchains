@@ -105,11 +105,17 @@ def toolchain_defs(host_arch, host_os, target, version, cpu):
         strip_files = "//toolchains:empty",
     )
 
+
+    # Bazel uses "macos" instead of "darwin" in @platforms; however, arm refers to the toolchain
+    # as "darwin". We chose to use "darwin" in this repository to follow arms convention and do a
+    # simple string replacement here to be compatible with bazel.
+    os_constraint_name = toolchain["host_os"].replace("darwin", "macos")
+
     native.toolchain(
         name = "{0}_toolchain".format(name_with_cpu),
         exec_compatible_with = [
             "@platforms//cpu:{}".format(toolchain["host_arch"]),
-            "@platforms//os:{}".format(toolchain["host_os"]),
+            "@platforms//os:{}".format(os_constraint_name),
         ],
         target_compatible_with = [
             "//platforms/cpu:{}".format(cpu),
